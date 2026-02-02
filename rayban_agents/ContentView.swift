@@ -142,18 +142,13 @@ struct ContentView: View {
     }
     
     private func startCall() async {
-        // Set up video filter to inject wearable frames
         streamManager.setVideoFilter(videoFilter.makeVideoFilter())
-        
-        // Start frame forwarding
         startFrameForwarding()
-        
-        // Join the call
-        await streamManager.createAndJoinCall(callId: callId)
-        
-        // Start wearable camera stream
+
         await wearablesManager.startCameraStream()
-        
+        await streamManager.createAndJoinCall(callId: callId)
+        await streamManager.enableCameraWithWearableFilter()
+
         await MainActor.run {
             showingCall = true
         }

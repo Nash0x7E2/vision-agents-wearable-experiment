@@ -84,7 +84,7 @@ final class StreamCallManager {
             try audioSession.setCategory(
                 .playAndRecord,
                 mode: .voiceChat,
-                options: [.allowBluetooth, .allowBluetoothA2DP]
+                options: [.allowBluetoothHFP, .allowBluetoothA2DP]
             )
             try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
             setPreferredInputToWearable(audioSession: audioSession)
@@ -114,17 +114,20 @@ final class StreamCallManager {
             return
         }
         
-        let newCall = streamVideo.call(callType: callType, callId: callId)
+        let callSettings = CallSettings(
+            audioOn: true,
+            videoOn: false
+        )
+        let newCall = streamVideo.call(callType: callType, callId: callId, callSettings: callSettings)
         call = newCall
-        
-        // Apply video filter if set
+
         if let filter = videoFilter {
             newCall.setVideoFilter(filter)
         }
-        
+
         do {
             setPreferredInputToWearable(audioSession: AVAudioSession.sharedInstance())
-            try await newCall.join(create: true)
+            try await newCall.join(create: true, callSettings: callSettings)
             await MainActor.run {
                 self.isInCall = true
                 self.callState = newCall.state
@@ -137,7 +140,20 @@ final class StreamCallManager {
             print("Failed to join call: \(error)")
         }
     }
-    
+
+    func enableCameraWithWearableFilter() async {
+        guard let call else { return }
+        do {
+            try await call.camera.enable()
+            await MainActor.run {
+                self.isCameraEnabled = true
+            }
+        } catch {
+            print("Failed to enable camera with wearable filter: \(error)")
+            self.error = error
+        }
+    }
+
     func leaveCall() async {
         guard let call else { return }
         
