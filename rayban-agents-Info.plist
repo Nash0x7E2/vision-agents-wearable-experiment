@@ -38,6 +38,12 @@
   <key>NSBluetoothAlwaysUsageDescription</key>
   <string>Needed to connect to Meta Wearables</string>
 
+  <!-- Camera and Microphone permissions for Stream Video -->
+  <key>NSCameraUsageDescription</key>
+  <string>Camera access is required for video calls</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Microphone access is required for audio in video calls</string>
+
   <!-- Wearables Device Access Toolkit configuration -->
   <key>MWDAT</key>
   <dict>
