@@ -6,6 +6,15 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		C69453BD2F301D4000B84437 /* MWDATCamera in Frameworks */ = {isa = PBXBuildFile; productRef = C69453BC2F301D4000B84437 /* MWDATCamera */; };
+		C69453BF2F301D4000B84437 /* MWDATCore in Frameworks */ = {isa = PBXBuildFile; productRef = C69453BE2F301D4000B84437 /* MWDATCore */; };
+		C69453C12F301D4000B84437 /* MWDATMockDevice in Frameworks */ = {isa = PBXBuildFile; productRef = C69453C02F301D4000B84437 /* MWDATMockDevice */; };
+		C69453C42F30200700B84437 /* StreamVideo in Frameworks */ = {isa = PBXBuildFile; productRef = C69453C32F30200700B84437 /* StreamVideo */; };
+		C69453C62F30200700B84437 /* StreamVideoSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = C69453C52F30200700B84437 /* StreamVideoSwiftUI */; };
+		C69453C82F30200700B84437 /* StreamVideoUIKit in Frameworks */ = {isa = PBXBuildFile; productRef = C69453C72F30200700B84437 /* StreamVideoUIKit */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		C67DA0582F3016900087C603 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +61,12 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C69453BD2F301D4000B84437 /* MWDATCamera in Frameworks */,
+				C69453C82F30200700B84437 /* StreamVideoUIKit in Frameworks */,
+				C69453C12F301D4000B84437 /* MWDATMockDevice in Frameworks */,
+				C69453C42F30200700B84437 /* StreamVideo in Frameworks */,
+				C69453C62F30200700B84437 /* StreamVideoSwiftUI in Frameworks */,
+				C69453BF2F301D4000B84437 /* MWDATCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +127,12 @@
 			);
 			name = rayban_agents;
 			packageProductDependencies = (
+				C69453BC2F301D4000B84437 /* MWDATCamera */,
+				C69453BE2F301D4000B84437 /* MWDATCore */,
+				C69453C02F301D4000B84437 /* MWDATMockDevice */,
+				C69453C32F30200700B84437 /* StreamVideo */,
+				C69453C52F30200700B84437 /* StreamVideoSwiftUI */,
+				C69453C72F30200700B84437 /* StreamVideoUIKit */,
 			);
 			productName = rayban_agents;
 			productReference = C67DA04A2F30168F0087C603 /* rayban_agents.app */;
@@ -195,6 +216,10 @@
 			);
 			mainGroup = C67DA0412F30168F0087C603;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				C69453BB2F301D4000B84437 /* XCLocalSwiftPackageReference "../meta-wearables-dat-ios-0.3.0" */,
+				C69453C22F30200700B84437 /* XCRemoteSwiftPackageReference "stream-video-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C67DA04B2F30168F0087C603 /* Products */;
 			projectDirPath = "";
@@ -397,20 +422,20 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = BHG62PRC3S;
+				DEVELOPMENT_TEAM = EHV7XZLAHA;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "rayban-agents-Info.plist";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "dev.neevash.draft.rayban-agents";
+				PRODUCT_BUNDLE_IDENTIFIER = io.getstream.glasses;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -429,20 +454,20 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = BHG62PRC3S;
+				DEVELOPMENT_TEAM = EHV7XZLAHA;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "rayban-agents-Info.plist";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "dev.neevash.draft.rayban-agents";
+				PRODUCT_BUNDLE_IDENTIFIER = io.getstream.glasses;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -578,6 +603,54 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		C69453BB2F301D4000B84437 /* XCLocalSwiftPackageReference "../meta-wearables-dat-ios-0.3.0" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../meta-wearables-dat-ios-0.3.0";
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		C69453C22F30200700B84437 /* XCRemoteSwiftPackageReference "stream-video-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/GetStream/stream-video-swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.40.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		C69453BC2F301D4000B84437 /* MWDATCamera */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MWDATCamera;
+		};
+		C69453BE2F301D4000B84437 /* MWDATCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MWDATCore;
+		};
+		C69453C02F301D4000B84437 /* MWDATMockDevice */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MWDATMockDevice;
+		};
+		C69453C32F30200700B84437 /* StreamVideo */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C69453C22F30200700B84437 /* XCRemoteSwiftPackageReference "stream-video-swift" */;
+			productName = StreamVideo;
+		};
+		C69453C52F30200700B84437 /* StreamVideoSwiftUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C69453C22F30200700B84437 /* XCRemoteSwiftPackageReference "stream-video-swift" */;
+			productName = StreamVideoSwiftUI;
+		};
+		C69453C72F30200700B84437 /* StreamVideoUIKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C69453C22F30200700B84437 /* XCRemoteSwiftPackageReference "stream-video-swift" */;
+			productName = StreamVideoUIKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = C67DA0422F30168F0087C603 /* Project object */;
 }
