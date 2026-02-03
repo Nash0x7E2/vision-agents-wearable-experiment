@@ -25,6 +25,7 @@ final class WearablesManager {
     private(set) var isStreaming = false
     private(set) var wearableVideoQuality: StreamingResolution = .low
     private(set) var lastCaptureSaveResult: Bool?
+    private(set) var streamStartError: Error?
 
     // MARK: - Private Properties
     
@@ -133,6 +134,7 @@ final class WearablesManager {
             print("Stream session already exists")
             return
         }
+        await MainActor.run { streamStartError = nil }
 
         let deviceSelector = AutoDeviceSelector(wearables: Wearables.shared)
         let config = StreamSessionConfig(
@@ -167,7 +169,24 @@ final class WearablesManager {
             }
         }
 
-        await session.start()
+        do {
+            try await session.start()
+        } catch {
+            print("Failed to start wearable stream: \(error)")
+            await MainActor.run {
+                stateToken = nil
+                frameToken = nil
+                photoDataToken = nil
+                streamSession = nil
+                isStreaming = false
+                latestFrame = nil
+                streamStartError = error
+            }
+        }
+    }
+
+    func clearStreamStartError() {
+        streamStartError = nil
     }
 
     func stopCameraStream() async {

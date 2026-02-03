@@ -52,6 +52,26 @@ struct CallView: View {
                     }
                 }
 
+                if wearablesManager.streamStartError != nil {
+                    VStack {
+                        HStack {
+                            Text("Stream failed to start. Try Low or Medium quality.")
+                                .font(.subheadline)
+                                .foregroundStyle(.white)
+                            Spacer()
+                            Button("Dismiss") {
+                                wearablesManager.clearStreamStartError()
+                            }
+                            .font(.subheadline.weight(.medium))
+                        }
+                        .padding()
+                        .background(.red.opacity(0.8), in: RoundedRectangle(cornerRadius: 12))
+                        .padding(.horizontal)
+                        Spacer()
+                    }
+                    .padding(.top, 60)
+                }
+
                 // Overlay UI
                 VStack {
                     // Top Bar
