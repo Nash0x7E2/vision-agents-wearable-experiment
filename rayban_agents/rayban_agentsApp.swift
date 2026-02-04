@@ -10,9 +10,6 @@ import StreamVideo
 
 @main
 struct rayban_agentsApp: App {
-    init() {
-        LogConfig.level = .debug
-    }
     var body: some Scene {
         WindowGroup {
             ContentView()

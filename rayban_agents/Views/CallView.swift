@@ -8,6 +8,7 @@
 import SwiftUI
 import StreamVideo
 import StreamVideoSwiftUI
+import UIKit
 
 struct CallView: View {
     let wearablesManager: WearablesManager
@@ -77,7 +78,8 @@ struct CallView: View {
                     // Top Bar
                     CallTopBar(
                         isStreaming: wearablesManager.isStreaming,
-                        streamState: wearablesManager.streamState
+                        streamState: wearablesManager.streamState,
+                        participantCount: streamManager.participantCount
                     )
                     
                     Spacer()
@@ -87,7 +89,6 @@ struct CallView: View {
                         isMicrophoneEnabled: streamManager.isMicrophoneEnabled,
                         isCameraEnabled: streamManager.isCameraEnabled,
                         isStreaming: wearablesManager.isStreaming,
-                        wearableVideoQuality: wearablesManager.wearableVideoQuality,
                         onToggleMic: {
                             Task { await streamManager.toggleMicrophone() }
                         },
@@ -96,9 +97,6 @@ struct CallView: View {
                         },
                         onToggleWearableStream: {
                             Task { await toggleWearableStream() }
-                        },
-                        onUpdateVideoQuality: { resolution in
-                            Task { await wearablesManager.updateVideoQuality(resolution) }
                         },
                         onEndCall: {
                             Task { await onLeaveCall() }
@@ -112,6 +110,14 @@ struct CallView: View {
             }
         }
         .ignoresSafeArea()
+        .onAppear {
+            UIApplication.shared.isIdleTimerDisabled = true
+            print("[CallView] Screen wake lock enabled")
+        }
+        .onDisappear {
+            UIApplication.shared.isIdleTimerDisabled = false
+            print("[CallView] Screen wake lock disabled")
+        }
     }
     
     private func toggleWearableStream() async {
@@ -161,15 +167,15 @@ private struct PlaceholderView: View {
 private struct CallTopBar: View {
     let isStreaming: Bool
     let streamState: MWDATCamera.StreamSessionState
-    
+    var participantCount: Int = 0
+
     var body: some View {
         HStack {
-            // Stream indicator
             HStack(spacing: 8) {
                 Circle()
                     .fill(isStreaming ? .green : .secondary)
                     .frame(width: 10, height: 10)
-                
+
                 Text(statusText)
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.white)
@@ -177,7 +183,16 @@ private struct CallTopBar: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(.ultraThinMaterial, in: Capsule())
-            
+
+            if participantCount > 0 {
+                Text("\(participantCount) in call")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(.ultraThinMaterial, in: Capsule())
+            }
+
             Spacer()
         }
         .padding()

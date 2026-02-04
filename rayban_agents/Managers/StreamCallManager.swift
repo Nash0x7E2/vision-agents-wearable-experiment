@@ -11,6 +11,43 @@ import AVFoundation
 import StreamVideo
 import StreamVideoSwiftUI
 
+private struct StartSessionRequest: Encodable {
+    let call_id: String
+    let call_type: String
+}
+
+private struct StartSessionResponse: Decodable {
+    let session_id: String
+    let call_id: String
+    let session_started_at: Date
+}
+
+private struct AgentJoinRequest: Encodable {
+    let callId: String
+    let userId: String
+}
+
+private struct AgentJoinResponse: Decodable {
+    let success: Bool
+    let agentId: String?
+    let message: String?
+}
+
+private enum BackendAPIError: Error, CustomStringConvertible {
+    case invalidResponse
+    case httpError(statusCode: Int, body: String)
+
+    var description: String {
+        switch self {
+        case .invalidResponse:
+            return "invalidResponse"
+        case .httpError(let code, let body):
+            let methodHint = code == 405 ? " (Method Not Allowed — ensure backend accepts POST /sessions)" : ""
+            return "httpError(statusCode: \(code), body: \"\(body)\")\(methodHint)"
+        }
+    }
+}
+
 @Observable
 final class StreamCallManager {
     
@@ -22,12 +59,23 @@ final class StreamCallManager {
     private(set) var isCameraEnabled = true
     private(set) var callState: CallState?
     private(set) var error: Error?
+
+    var participantCount: Int {
+        if let c = call?.state.participantCount { return Int(c) }
+        if let c = callState?.participantCount { return Int(c) }
+        return 0
+    }
     
     // MARK: - Stream Video Objects
     
     private(set) var streamVideo: StreamVideo?
     private(set) var call: Call?
     
+    /// Session ID from backend (agent join). Used to close the agent on leave/end.
+    private(set) var currentAgentSessionId: String?
+    /// Call ID used when starting backend session; used for DELETE /agents/{callId} in demo-style API.
+    private(set) var currentBackendCallId: String?
+
     // MARK: - Private Properties
     
     private var videoFilter: VideoFilter?
@@ -44,10 +92,10 @@ final class StreamCallManager {
     func setup(wearablesManager: WearablesManager? = nil) async {
         self.wearablesManager = wearablesManager
         await setupAudioSession()
-        setupStreamVideo()
+        await setupStreamVideo()
     }
 
-    private func setupStreamVideo() {
+    private func setupStreamVideo() async {
         let user = User(
             id: Secrets.streamUserId,
             name: "Wearables User",
@@ -63,7 +111,7 @@ final class StreamCallManager {
         }
         let videoConfig = VideoConfig(customVideoCapturerProvider: customProvider)
 
-        streamVideo = StreamVideo(
+        let video = StreamVideo(
             apiKey: Secrets.streamApiKey,
             user: user,
             token: token,
@@ -72,20 +120,19 @@ final class StreamCallManager {
                 result(.success(token))
             }
         )
-        
-        Task {
-            do {
-                try await streamVideo?.connect()
-                await MainActor.run {
-                    self.isConnected = true
-                }
-            } catch {
-                await MainActor.run {
-                    self.error = error
-                    self.isConnected = false
-                }
-                print("Failed to connect to Stream: \(error)")
+        streamVideo = video
+
+        do {
+            try await video.connect()
+            await MainActor.run { [weak self] in
+                self?.isConnected = true
             }
+        } catch {
+            await MainActor.run { [weak self] in
+                self?.error = error
+                self?.isConnected = false
+            }
+            print("Failed to connect to Stream: \(error)")
         }
     }
     
@@ -96,13 +143,14 @@ final class StreamCallManager {
             try audioSession.setCategory(
                 .playAndRecord,
                 mode: .voiceChat,
-                options: [.allowBluetoothHFP, .allowBluetoothA2DP]
+                options: [.allowBluetoothHFP, .allowBluetoothA2DP, .defaultToSpeaker, .mixWithOthers]
             )
             try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+            print("[Audio] Session configured: category=\(audioSession.category.rawValue), mode=\(audioSession.mode.rawValue)")
             setPreferredInputToWearable(audioSession: audioSession)
             try await Task.sleep(nanoseconds: 2 * NSEC_PER_SEC)
         } catch {
-            print("Failed to configure audio session: \(error)")
+            print("[Audio] Failed to configure audio session: \(error)")
             self.error = error
         }
     }
@@ -125,10 +173,16 @@ final class StreamCallManager {
             print("StreamVideo not initialized")
             return
         }
-        
+        guard isConnected else {
+            print("Cannot join call: Stream client not connected")
+            return
+        }
+
         let callSettings = CallSettings(
             audioOn: true,
-            videoOn: false
+            videoOn: true,
+            speakerOn: true,
+            audioOutputOn: true
         )
         let newCall = streamVideo.call(callType: callType, callId: callId, callSettings: callSettings)
         call = newCall
@@ -138,30 +192,152 @@ final class StreamCallManager {
         }
 
         do {
+            print("[Stream] Joining call: \(callId) (type: \(callType))")
             setPreferredInputToWearable(audioSession: AVAudioSession.sharedInstance())
             try await newCall.join(create: true, callSettings: callSettings)
-            await MainActor.run {
-                self.isInCall = true
-                self.callState = newCall.state
+            print("[Stream] Successfully joined call: \(callId)")
+            print("[Stream] Participant count: \(newCall.state.participantCount ?? 0)")
+            print("[Stream] Local participant ID: \(newCall.state.localParticipant?.id ?? "unknown")")
+            try await newCall.speaker.enableSpeakerPhone()
+            try? await newCall.speaker.enableAudioOutput()
+            setPreferredInputToWearable(audioSession: AVAudioSession.sharedInstance())
+            try? AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
+            await MainActor.run { [weak self] in
+                guard let this = self else { return }
+                this.isInCall = true
+                this.callState = newCall.state
             }
         } catch {
-            await MainActor.run {
-                self.error = error
-                self.isInCall = false
+            await MainActor.run { [weak self] in
+                guard let this = self else { return }
+                this.error = error
+                this.isInCall = false
             }
-            print("Failed to join call: \(error)")
+            print("[Stream] Failed to join call \(callId): \(error)")
+            return
+        }
+
+        if let baseURL = Secrets.backendBaseURL, !baseURL.isEmpty {
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            do {
+                let sessionId = try await startBackendSession(callId: callId, callType: callType, baseURL: baseURL)
+                await MainActor.run { [weak self] in
+                    self?.currentAgentSessionId = sessionId
+                    self?.currentBackendCallId = callId
+                }
+            } catch {
+                print("Backend start session failed (user is already in call): \(error)")
+                await MainActor.run { [weak self] in
+                    self?.currentAgentSessionId = nil
+                    self?.currentBackendCallId = nil
+                }
+            }
+        }
+    }
+
+    private static var backendSessionsPath: String {
+        Secrets.backendSessionsPath ?? "/sessions"
+    }
+
+    private static var backendUsesAgentJoinFormat: Bool {
+        let path = backendSessionsPath
+        return path.contains("agent") && path.contains("join")
+    }
+
+    private func startBackendSession(callId: String, callType: String, baseURL: String) async throws -> String {
+        let path = Self.backendSessionsPath
+        let base = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let pathTrimmed = path.hasPrefix("/") ? String(path.dropFirst()) : path
+        guard let url = URL(string: "\(base)/\(pathTrimmed)") else { throw BackendAPIError.invalidResponse }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        if Self.backendUsesAgentJoinFormat {
+            let userId = Secrets.backendUserId ?? Secrets.streamUserId
+            request.httpBody = try JSONEncoder().encode(AgentJoinRequest(callId: callId, userId: userId))
+        } else {
+            request.httpBody = try JSONEncoder().encode(StartSessionRequest(call_id: callId, call_type: callType))
+        }
+
+        print("[Backend API] POST \(url.absoluteString)")
+        if let body = request.httpBody, let bodyStr = String(data: body, encoding: .utf8) {
+            print("[Backend API] Request body: \(bodyStr)")
+        }
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw BackendAPIError.invalidResponse }
+        
+        let responseBody = String(data: data, encoding: .utf8) ?? ""
+        print("[Backend API] Response status: \(http.statusCode)")
+        print("[Backend API] Response body: \(responseBody)")
+        
+        guard (Self.backendUsesAgentJoinFormat ? (200...299).contains(http.statusCode) : http.statusCode == 201) else {
+            throw BackendAPIError.httpError(statusCode: http.statusCode, body: responseBody)
+        }
+
+        if Self.backendUsesAgentJoinFormat {
+            let decoded = try JSONDecoder().decode(AgentJoinResponse.self, from: data)
+            guard decoded.success, let agentId = decoded.agentId else {
+                throw BackendAPIError.httpError(statusCode: http.statusCode, body: String(data: data, encoding: .utf8) ?? "")
+            }
+            return agentId
+        }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let str = try container.decode(String.self)
+            let withFractional = ISO8601DateFormatter()
+            withFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            let withoutFractional = ISO8601DateFormatter()
+            guard let date = withFractional.date(from: str) ?? withoutFractional.date(from: str) else {
+                throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid ISO8601: \(str)")
+            }
+            return date
+        }
+        let decoded = try decoder.decode(StartSessionResponse.self, from: data)
+        return decoded.session_id
+    }
+
+    private func closeBackendSessionIfNeeded() async {
+        guard let baseURL = Secrets.backendBaseURL, !baseURL.isEmpty else { return }
+        let base = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let url: URL?
+        if Self.backendUsesAgentJoinFormat {
+            let callId = currentBackendCallId ?? call?.callId ?? ""
+            guard !callId.isEmpty else { return }
+            url = URL(string: "\(base)/agents/\(callId)")
+        } else {
+            guard let sessionId = currentAgentSessionId else { return }
+            url = URL(string: "\(base)/sessions/\(sessionId)")
+        }
+        guard let url else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        _ = try? await URLSession.shared.data(for: request)
+        await MainActor.run { [weak self] in
+            self?.currentAgentSessionId = nil
+            self?.currentBackendCallId = nil
         }
     }
 
     func enableCameraWithWearableFilter() async {
-        guard let call else { return }
+        guard let call else {
+            print("[Stream] enableCameraWithWearableFilter: no active call")
+            return
+        }
         do {
+            print("[Stream] Enabling camera for call: \(call.callId)")
             try await call.camera.enable()
-            await MainActor.run {
-                self.isCameraEnabled = true
+            print("[Stream] Camera enabled successfully")
+            print("[Stream] Audio track publishing: \(call.state.localParticipant?.hasAudio ?? false)")
+            print("[Stream] Video track publishing: \(call.state.localParticipant?.hasVideo ?? false)")
+            await MainActor.run { [weak self] in
+                self?.isCameraEnabled = true
             }
         } catch {
-            print("Failed to enable camera with wearable filter: \(error)")
+            print("[Stream] Failed to enable camera: \(error)")
             self.error = error
         }
     }
@@ -170,10 +346,11 @@ final class StreamCallManager {
         guard let call else { return }
         stopWearableFramePump()
         call.leave()
-        await MainActor.run {
-            self.call = nil
-            self.isInCall = false
-            self.callState = nil
+        await closeBackendSessionIfNeeded()
+        await MainActor.run { [weak self] in
+            self?.call = nil
+            self?.isInCall = false
+            self?.callState = nil
         }
     }
     
@@ -182,10 +359,11 @@ final class StreamCallManager {
         stopWearableFramePump()
         do {
             try await call.end()
-            await MainActor.run {
-                self.call = nil
-                self.isInCall = false
-                self.callState = nil
+            await closeBackendSessionIfNeeded()
+            await MainActor.run { [weak self] in
+                self?.call = nil
+                self?.isInCall = false
+                self?.callState = nil
             }
         } catch {
             print("Failed to end call: \(error)")
@@ -204,8 +382,8 @@ final class StreamCallManager {
             } else {
                 try await call.microphone.enable()
             }
-            await MainActor.run {
-                self.isMicrophoneEnabled.toggle()
+            await MainActor.run { [weak self] in
+                self?.isMicrophoneEnabled.toggle()
             }
         } catch {
             print("Failed to toggle microphone: \(error)")
@@ -222,8 +400,8 @@ final class StreamCallManager {
             } else {
                 try await call.camera.enable()
             }
-            await MainActor.run {
-                self.isCameraEnabled.toggle()
+            await MainActor.run { [weak self] in
+                self?.isCameraEnabled.toggle()
             }
         } catch {
             print("Failed to toggle camera: \(error)")
@@ -287,9 +465,9 @@ final class StreamCallManager {
             await leaveCall()
         }
         await streamVideo?.disconnect()
-        await MainActor.run {
-            self.streamVideo = nil
-            self.isConnected = false
+        await MainActor.run { [weak self] in
+            self?.streamVideo = nil
+            self?.isConnected = false
         }
     }
 }

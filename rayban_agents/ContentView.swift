@@ -111,7 +111,6 @@ struct ContentView: View {
                 .foregroundStyle(.white)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
-            .disabled(callId.isEmpty)
         }
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
@@ -140,7 +139,9 @@ struct ContentView: View {
     private func startCall() async {
         streamManager.setVideoFilter(nil)
         await wearablesManager.startCameraStream()
-        await streamManager.createAndJoinCall(callId: callId)
+        let trimmedCallId = callId.trimmingCharacters(in: .whitespacesAndNewlines)
+        let effectiveCallId = trimmedCallId.isEmpty ? UUID().uuidString : trimmedCallId
+        await streamManager.createAndJoinCall(callId: effectiveCallId)
         await streamManager.enableCameraWithWearableFilter()
         await MainActor.run {
             showingCall = true

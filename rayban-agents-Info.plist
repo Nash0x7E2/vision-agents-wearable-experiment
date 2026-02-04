@@ -38,11 +38,13 @@
     <string>com.meta.ar.wearable</string>
   </array>
 
-  <!-- Background modes for Bluetooth and external accessories -->
+  <!-- Background modes for Bluetooth, external accessories, and audio -->
   <key>UIBackgroundModes</key>
   <array>
+    <string>audio</string>
     <string>bluetooth-peripheral</string>
     <string>external-accessory</string>
+    <string>voip</string>
   </array>
   <key>NSBluetoothAlwaysUsageDescription</key>
   <string>Needed to connect to Meta Wearables</string>
