@@ -49,6 +49,45 @@ private enum BackendAPIError: Error, CustomStringConvertible {
     }
 }
 
+private enum ISO8601Parsers {
+    private static let withFractional: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+    private static let withoutFractional: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
+        return f
+    }()
+
+    static func parse(_ s: String) throws -> Date {
+        if let d = withFractional.date(from: s) ?? withoutFractional.date(from: s) {
+            return d
+        }
+        throw DecodingError.dataCorrupted(
+            DecodingError.Context(codingPath: [], debugDescription: "Invalid ISO8601: \(s)")
+        )
+    }
+}
+
+private enum JSONCoders {
+    static let encoder: JSONEncoder = {
+        let e = JSONEncoder()
+        return e
+    }()
+
+    static let decoder: JSONDecoder = {
+        let d = JSONDecoder()
+        d.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let str = try container.decode(String.self)
+            return try ISO8601Parsers.parse(str)
+        }
+        return d
+    }()
+}
+
 @Observable
 final class StreamCallManager {
     
@@ -379,9 +418,9 @@ final class StreamCallManager {
 
         if Self.backendUsesAgentJoinFormat {
             let userId = Secrets.backendUserId ?? Secrets.streamUserId
-            request.httpBody = try JSONEncoder().encode(AgentJoinRequest(callId: callId, userId: userId))
+            request.httpBody = try JSONCoders.encoder.encode(AgentJoinRequest(callId: callId, userId: userId))
         } else {
-            request.httpBody = try JSONEncoder().encode(StartSessionRequest(call_id: callId, call_type: callType))
+            request.httpBody = try JSONCoders.encoder.encode(StartSessionRequest(call_id: callId, call_type: callType))
         }
 
         print("[Backend API] POST \(url.absoluteString)")
@@ -401,26 +440,14 @@ final class StreamCallManager {
         }
 
         if Self.backendUsesAgentJoinFormat {
-            let decoded = try JSONDecoder().decode(AgentJoinResponse.self, from: data)
+            let decoded = try JSONCoders.decoder.decode(AgentJoinResponse.self, from: data)
             guard decoded.success, let agentId = decoded.agentId else {
                 throw BackendAPIError.httpError(statusCode: http.statusCode, body: String(data: data, encoding: .utf8) ?? "")
             }
             return agentId
         }
 
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .custom { decoder in
-            let container = try decoder.singleValueContainer()
-            let str = try container.decode(String.self)
-            let withFractional = ISO8601DateFormatter()
-            withFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            let withoutFractional = ISO8601DateFormatter()
-            guard let date = withFractional.date(from: str) ?? withoutFractional.date(from: str) else {
-                throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid ISO8601: \(str)")
-            }
-            return date
-        }
-        let decoded = try decoder.decode(StartSessionResponse.self, from: data)
+        let decoded = try JSONCoders.decoder.decode(StartSessionResponse.self, from: data)
         return decoded.session_id
     }
 
