@@ -121,6 +121,7 @@ final class StreamCallManager {
     private var videoFilter: VideoFilter?
     private weak var wearablesManager: WearablesManager?
     private var wearableFrameSink: (any ExternalFrameSink)?
+    private var frameCount = 0
     
     // MARK: - Initialization
 
@@ -160,17 +161,33 @@ final class StreamCallManager {
         streamVideo = video
 
         do {
+            print("[Stream] Connecting to Stream Video...")
             try await video.connect()
+            print("[Stream] Connected successfully")
             await MainActor.run { [weak self] in
                 self?.isConnected = true
             }
+            
+            // Monitor connection state
+            observeConnectionState()
         } catch {
             await MainActor.run { [weak self] in
                 self?.error = error
                 self?.isConnected = false
             }
-            print("Failed to connect to Stream: \(error)")
+            print("[Stream] Failed to connect to Stream: \(error)")
         }
+    }
+    
+    private func observeConnectionState() {
+        guard let video = streamVideo else { return }
+        
+        // Log initial connection status
+        print("[Stream] Initial connection status: \(video.state.connection)")
+        
+        // Note: For production, you would want to observe connection state changes
+        // using Combine or other observation mechanisms. For now, we'll rely on
+        // the isConnected flag and error handling in individual operations.
     }
     
     private func setupAudioSession() async {
@@ -320,6 +337,8 @@ final class StreamCallManager {
             return
         }
 
+        // Start with video ON since wearable stream is already active
+        // This prevents WebRTC renegotiation issues when enabling video later
         let callSettings = CallSettings(
             audioOn: true,
             videoOn: true,
@@ -334,7 +353,11 @@ final class StreamCallManager {
         }
 
         do {
-            print("[Stream] Joining call: \(callId) (type: \(callType))")
+            print("[Stream] ========================================")
+            print("[Stream] 🎬 JOINING CALL")
+            print("[Stream] Call ID: \(callId)")
+            print("[Stream] Call Type: \(callType)")
+            print("[Stream] ========================================")
             let audioSession = AVAudioSession.sharedInstance()
             setPreferredInputToWearable(audioSession: audioSession)
             
@@ -358,16 +381,21 @@ final class StreamCallManager {
             try? await newCall.speaker.enableAudioOutput()
             try? audioSession.setActive(true, options: .notifyOthersOnDeactivation)
             
-            // Adjust input one more time after join
-            setPreferredInputToWearable(audioSession: audioSession)
-            
             logAvailableAudioInputs(audioSession: audioSession)
             print("[Audio] After call join - hasAudio: \(newCall.state.localParticipant?.hasAudio ?? false)")
             print("[Audio] Microphone status - isEnabled: \(newCall.microphone.status.rawValue)")
+            print("[Video] After call join - hasVideo: \(newCall.state.localParticipant?.hasVideo ?? false)")
+            print("[Video] Camera status - isEnabled: \(newCall.camera.status.rawValue)")
+            print("[Video] Frame sink ready: \(wearableFrameSink != nil)")
+            print("[Video] Wearable streaming: \(wearablesManager?.isStreaming ?? false)")
+            
+            // Give frame sink a moment to initialize and start pushing frames
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
             
             await MainActor.run { [weak self] in
                 guard let this = self else { return }
                 this.isInCall = true
+                this.isCameraEnabled = true
                 this.callState = newCall.state
             }
         } catch {
@@ -378,23 +406,6 @@ final class StreamCallManager {
             }
             print("[Stream] Failed to join call \(callId): \(error)")
             return
-        }
-
-        if let baseURL = Secrets.backendBaseURL, !baseURL.isEmpty {
-            try? await Task.sleep(nanoseconds: 1_500_000_000)
-            do {
-                let sessionId = try await startBackendSession(callId: callId, callType: callType, baseURL: baseURL)
-                await MainActor.run { [weak self] in
-                    self?.currentAgentSessionId = sessionId
-                    self?.currentBackendCallId = callId
-                }
-            } catch {
-                print("Backend start session failed (user is already in call): \(error)")
-                await MainActor.run { [weak self] in
-                    self?.currentAgentSessionId = nil
-                    self?.currentBackendCallId = nil
-                }
-            }
         }
     }
 
@@ -478,18 +489,100 @@ final class StreamCallManager {
             print("[Stream] enableCameraWithWearableFilter: no active call")
             return
         }
+        
+        // Verify wearable stream is ready before enabling camera
+        if let wearables = wearablesManager {
+            if !wearables.isStreaming {
+                print("[Stream] Warning: Wearable stream not active yet (state: \(wearables.streamState)), waiting up to 3 seconds...")
+                
+                // Wait up to 3 seconds for stream to become active
+                var waitAttempts = 0
+                while !wearables.isStreaming && waitAttempts < 30 {
+                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
+                    waitAttempts += 1
+                }
+                
+                guard wearables.isStreaming else {
+                    print("[Stream] Error: Wearable stream failed to start after 3 seconds (final state: \(wearables.streamState))")
+                    print("[Stream] Stream session exists: \(wearables.streamState != .stopped)")
+                    return
+                }
+                print("[Stream] Wearable stream became active after \(waitAttempts * 100)ms")
+            }
+        } else {
+            print("[Stream] Error: WearablesManager not available")
+            return
+        }
+        
+        print("[Stream] Wearable stream confirmed active, enabling camera")
+        print("[Stream] Frame sink ready: \(wearableFrameSink != nil)")
+        print("[Stream] onFrameForSink callback set: \(wearablesManager?.onFrameForSink != nil)")
+        
         do {
             print("[Stream] Enabling camera for call: \(call.callId)")
+            let startTime = Date()
             try await call.camera.enable()
-            print("[Stream] Camera enabled successfully")
+            let elapsed = Date().timeIntervalSince(startTime)
+            print("[Stream] Camera enabled successfully (took \(String(format: "%.2f", elapsed))s)")
             print("[Stream] Audio track publishing: \(call.state.localParticipant?.hasAudio ?? false)")
             print("[Stream] Video track publishing: \(call.state.localParticipant?.hasVideo ?? false)")
+            
+            // Give a moment for video track to fully negotiate
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
+            print("[Stream] Video track negotiation stabilization complete")
+            
             await MainActor.run { [weak self] in
                 self?.isCameraEnabled = true
             }
         } catch {
             print("[Stream] Failed to enable camera: \(error)")
             self.error = error
+        }
+    }
+
+    func startBackendSessionIfNeeded() async {
+        guard let baseURL = Secrets.backendBaseURL, !baseURL.isEmpty else { return }
+        guard let call else { return }
+        
+        print("[Backend] Waiting for WebRTC connection to stabilize before starting agent...")
+        
+        // Wait for WebRTC connection and video track to fully stabilize
+        // Need to ensure frame sink is pumping frames before agent joins
+        try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
+        
+        // Verify we're still in the call and connection is good
+        guard isInCall else {
+            print("[Backend] Call ended before backend session could start")
+            return
+        }
+        
+        // Log connection state before starting agent
+        print("[Backend] Connection state before agent start:")
+        print("[Backend]   - isInCall: \(isInCall)")
+        print("[Backend]   - isConnected: \(isConnected)")
+        print("[Backend]   - participant count: \(participantCount)")
+        print("[Backend]   - local audio publishing: \(call.state.localParticipant?.hasAudio ?? false)")
+        print("[Backend]   - local video publishing: \(call.state.localParticipant?.hasVideo ?? false)")
+        
+        print("[Backend] Starting backend session for call: \(call.callId)")
+        
+        do {
+            let sessionId = try await startBackendSession(
+                callId: call.callId,
+                callType: call.callType,
+                baseURL: baseURL
+            )
+            await MainActor.run { [weak self] in
+                self?.currentAgentSessionId = sessionId
+                self?.currentBackendCallId = call.callId
+            }
+            print("[Backend] Session started successfully: \(sessionId)")
+        } catch {
+            print("[Backend] Start session failed (may already be in call): \(error)")
+            await MainActor.run { [weak self] in
+                self?.currentAgentSessionId = nil
+                self?.currentBackendCallId = nil
+            }
         }
     }
 
@@ -588,13 +681,36 @@ final class StreamCallManager {
 
     private func onWearableFrameSinkReady(_ frameSink: some ExternalFrameSink) {
         wearableFrameSink = frameSink
+        print("[Stream] ✅ Frame sink ready, wiring up wearable frame forwarding")
+        print("[Stream] Frame sink type: \(type(of: frameSink))")
+        
         // Attach push-based frame forwarding from WearablesManager to the ExternalFrameSink
         wearablesManager?.onFrameForSink = { [weak self] ciImage in
-            guard let self = self, let sink = self.wearableFrameSink else { return }
+            guard let self = self else { return }
+            guard let sink = self.wearableFrameSink else {
+                print("[Stream] Warning: Received frame but frame sink is nil")
+                return
+            }
+            guard self.wearablesManager?.isStreaming == true else {
+                print("[Stream] Warning: Received frame but wearable stream is not active")
+                return
+            }
+            
             let quality = self.wearablesManager?.wearableVideoQuality ?? .low
             if let pixelBuffer = WearableFramePump.makePixelBuffer(from: ciImage, resolution: quality) {
                 sink.pushFrame(pixelBuffer: pixelBuffer, rotation: .none)
+                // Log first few frames to confirm pushing is working
+                self.frameCount += 1
+                if self.frameCount <= 5 || self.frameCount % 30 == 0 {
+                    print("[Stream] Pushed frame #\(self.frameCount) to video track")
+                }
             }
+        }
+        
+        // Log current state for debugging
+        if let wearables = wearablesManager {
+            print("[Stream] Wearable stream active: \(wearables.isStreaming)")
+            print("[Stream] Wearable stream state: \(wearables.streamState)")
         }
     }
 

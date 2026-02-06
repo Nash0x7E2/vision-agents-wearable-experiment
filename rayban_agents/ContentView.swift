@@ -138,14 +138,44 @@ struct ContentView: View {
     
     private func startCall() async {
         streamManager.setVideoFilter(nil)
+        
+        // Start wearable camera stream first
         await wearablesManager.startCameraStream()
-        let trimmedCallId = callId.trimmingCharacters(in: .whitespacesAndNewlines)
-        let effectiveCallId = trimmedCallId.isEmpty ? UUID().uuidString : trimmedCallId
+        
+        // Wait for wearable stream to actually start streaming
+        // The stream state changes asynchronously via listeners
+        var attempts = 0
+        while !wearablesManager.isStreaming && attempts < 20 {
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
+            attempts += 1
+        }
+        
+        if !wearablesManager.isStreaming {
+            print("[ContentView] Warning: Wearable stream failed to start after 2 seconds")
+        } else {
+            print("[ContentView] Wearable stream confirmed active, proceeding with call join")
+        }
+        
+        // Join the call with video enabled (wearable stream is already active)
+        // Use hardcoded call ID if available, otherwise use user input or generate UUID
+        let effectiveCallId: String
+        if let fixedId = Secrets.fixedCallId, !fixedId.isEmpty {
+            effectiveCallId = fixedId
+            print("[ContentView] Using hardcoded call ID: \(fixedId)")
+        } else {
+            let trimmedCallId = callId.trimmingCharacters(in: .whitespacesAndNewlines)
+            effectiveCallId = trimmedCallId.isEmpty ? UUID().uuidString : trimmedCallId
+        }
         await streamManager.createAndJoinCall(callId: effectiveCallId)
-        await streamManager.enableCameraWithWearableFilter()
+        
+        // Show the call view immediately after joining
         await MainActor.run {
             showingCall = true
         }
+        
+        // Start backend session after call is fully established
+        // This allows the agent to join the existing call
+        await streamManager.startBackendSessionIfNeeded()
     }
 
     private func leaveCall() async {

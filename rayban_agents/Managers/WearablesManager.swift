@@ -84,7 +84,7 @@ final class WearablesManager {
     func startRegistration() {
         Task(priority: .utility) {
             do {
-                try Wearables.shared.startRegistration()
+                try await Wearables.shared.startRegistration()
             } catch {
                 print("Failed to start registration: \(error)")
             }
@@ -94,7 +94,7 @@ final class WearablesManager {
     func startUnregistration() {
         Task(priority: .utility) {
             do {
-                try Wearables.shared.startUnregistration()
+                try await Wearables.shared.startUnregistration()
             } catch {
                 print("Failed to start unregistration: \(error)")
             }
@@ -148,7 +148,7 @@ final class WearablesManager {
         let config = StreamSessionConfig(
             videoCodec: .raw,
             resolution: wearableVideoQuality,
-            frameRate: 24
+            frameRate: 8
         )
 
         let session = StreamSession(streamSessionConfig: config, deviceSelector: deviceSelector)
@@ -156,8 +156,19 @@ final class WearablesManager {
 
         stateToken = session.statePublisher.listen { [weak self] state in
             Task { @MainActor in
+                let previousState = self?.streamState
                 self?.streamState = state
                 self?.isStreaming = (state == .streaming)
+                
+                // Log state transitions
+                if let prev = previousState, prev != state {
+                    print("[Wearable] Stream state changed: \(prev) → \(state)")
+                }
+                
+                // Alert if stream stops unexpectedly
+                if state == .stopped || state == .paused {
+                    print("[Wearable] ⚠️ Stream stopped/paused unexpectedly - state: \(state)")
+                }
             }
         }
 
