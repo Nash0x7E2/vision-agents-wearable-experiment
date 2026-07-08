@@ -57,13 +57,17 @@
   <key>NSPhotoLibraryAddUsageDescription</key>
   <string>Save photos taken from your glasses to your photo library</string>
 
+  <!-- DAT App Model must be explicitly enabled on SDK 0.7 (0.8 defaults it on). -->
+  <key>DAMEnabled</key>
+  <true/>
+
   <!-- Wearables Device Access Toolkit configuration -->
   <key>MWDAT</key>
   <dict>
     <key>AppLinkURLScheme</key>
     <string>myexampleapp://</string>
     <key>MetaAppID</key>
-    <string>1529770988648827</string>
+    <string>0</string>
   </dict>
 </dict>
 </plist>

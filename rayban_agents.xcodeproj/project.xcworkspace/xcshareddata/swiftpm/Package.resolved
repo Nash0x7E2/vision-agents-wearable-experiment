@@ -1,0 +1,42 @@
+{
+  "originHash" : "2b8e33969efc16816eeef7b78252055a6a64b9ed4420ba5e7d9fe374ad1b4655",
+  "pins" : [
+    {
+      "identity" : "meta-wearables-dat-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/facebook/meta-wearables-dat-ios",
+      "state" : {
+        "revision" : "c40db3978a76b97504b85ed9f082be5549c5a486",
+        "version" : "0.7.0"
+      }
+    },
+    {
+      "identity" : "stream-video-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/GetStream/stream-video-swift.git",
+      "state" : {
+        "revision" : "eab7c4eb73b9f242af6a1991cbb21413ba3cc6a0",
+        "version" : "1.48.0"
+      }
+    },
+    {
+      "identity" : "stream-video-swift-webrtc",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/GetStream/stream-video-swift-webrtc.git",
+      "state" : {
+        "revision" : "5ff14bf17c2f809944d233eb446deeb4a9810adc",
+        "version" : "145.8.0"
+      }
+    },
+    {
+      "identity" : "swift-protobuf",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-protobuf.git",
+      "state" : {
+        "revision" : "102a647b573f60f73afdce5613a51d71349fe507",
+        "version" : "1.30.0"
+      }
+    }
+  ],
+  "version" : 3
+}

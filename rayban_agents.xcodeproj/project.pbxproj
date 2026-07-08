@@ -7,13 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		C69453BD2F301D4000B84437 /* MWDATCamera in Frameworks */ = {isa = PBXBuildFile; productRef = C69453BC2F301D4000B84437 /* MWDATCamera */; };
-		C69453BF2F301D4000B84437 /* MWDATCore in Frameworks */ = {isa = PBXBuildFile; productRef = C69453BE2F301D4000B84437 /* MWDATCore */; };
 		C6AF27BD2F328C3B0014DC89 /* StreamVideo in Frameworks */ = {isa = PBXBuildFile; productRef = C6AF27BC2F328C3B0014DC89 /* StreamVideo */; };
 		C6AF27BF2F328C3B0014DC89 /* StreamVideoSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = C6AF27BE2F328C3B0014DC89 /* StreamVideoSwiftUI */; };
 		C6DBF7BB2F342233009F49E8 /* MWDATCamera in Frameworks */ = {isa = PBXBuildFile; productRef = C6DBF7BA2F342233009F49E8 /* MWDATCamera */; };
 		C6DBF7BD2F342233009F49E8 /* MWDATCore in Frameworks */ = {isa = PBXBuildFile; productRef = C6DBF7BC2F342233009F49E8 /* MWDATCore */; };
-		C6DBF7BF2F342233009F49E8 /* MWDATMockDevice in Frameworks */ = {isa = PBXBuildFile; productRef = C6DBF7BE2F342233009F49E8 /* MWDATMockDevice */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -66,9 +63,6 @@
 				C6DBF7BD2F342233009F49E8 /* MWDATCore in Frameworks */,
 				C6AF27BF2F328C3B0014DC89 /* StreamVideoSwiftUI in Frameworks */,
 				C6AF27BD2F328C3B0014DC89 /* StreamVideo in Frameworks */,
-				C6DBF7BF2F342233009F49E8 /* MWDATMockDevice in Frameworks */,
-				C69453BD2F301D4000B84437 /* MWDATCamera in Frameworks */,
-				C69453BF2F301D4000B84437 /* MWDATCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -129,13 +123,10 @@
 			);
 			name = rayban_agents;
 			packageProductDependencies = (
-				C69453BC2F301D4000B84437 /* MWDATCamera */,
-				C69453BE2F301D4000B84437 /* MWDATCore */,
 				C6AF27BC2F328C3B0014DC89 /* StreamVideo */,
 				C6AF27BE2F328C3B0014DC89 /* StreamVideoSwiftUI */,
 				C6DBF7BA2F342233009F49E8 /* MWDATCamera */,
 				C6DBF7BC2F342233009F49E8 /* MWDATCore */,
-				C6DBF7BE2F342233009F49E8 /* MWDATMockDevice */,
 			);
 			productName = rayban_agents;
 			productReference = C67DA04A2F30168F0087C603 /* rayban_agents.app */;
@@ -194,18 +185,18 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2620;
-				LastUpgradeCheck = 2620;
+				LastSwiftUpdateCheck = 2630;
+				LastUpgradeCheck = 2630;
 				TargetAttributes = {
 					C67DA0492F30168F0087C603 = {
-						CreatedOnToolsVersion = 26.2;
+						CreatedOnToolsVersion = 26.3;
 					};
 					C67DA0562F3016900087C603 = {
-						CreatedOnToolsVersion = 26.2;
+						CreatedOnToolsVersion = 26.3;
 						TestTargetID = C67DA0492F30168F0087C603;
 					};
 					C67DA0602F3016900087C603 = {
-						CreatedOnToolsVersion = 26.2;
+						CreatedOnToolsVersion = 26.3;
 						TestTargetID = C67DA0492F30168F0087C603;
 					};
 				};
@@ -612,29 +603,21 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/GetStream/stream-video-swift.git";
 			requirement = {
-				branch = "nash/custom-video-track";
-				kind = branch;
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.48.0;
 			};
 		};
 		C6DBF7B92F342233009F49E8 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/facebook/meta-wearables-dat-ios";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.4.0;
+				kind = exactVersion;
+				version = 0.7.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		C69453BC2F301D4000B84437 /* MWDATCamera */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = MWDATCamera;
-		};
-		C69453BE2F301D4000B84437 /* MWDATCore */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = MWDATCore;
-		};
 		C6AF27BC2F328C3B0014DC89 /* StreamVideo */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = C6AF27BB2F328C3B0014DC89 /* XCRemoteSwiftPackageReference "stream-video-swift" */;
@@ -654,11 +637,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = C6DBF7B92F342233009F49E8 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
 			productName = MWDATCore;
-		};
-		C6DBF7BE2F342233009F49E8 /* MWDATMockDevice */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = C6DBF7B92F342233009F49E8 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
-			productName = MWDATMockDevice;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
