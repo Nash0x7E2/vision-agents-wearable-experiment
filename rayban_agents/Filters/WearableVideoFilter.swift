@@ -61,9 +61,9 @@ final class WearableVideoFilter: @unchecked Sendable {
             }
             
             if let wearableFrame = self.latestFrame {
-                let scaledFrame = self.scaleToFit(
+                let scaledFrame = self.scaleToFill(
                     image: wearableFrame,
-                    targetSize: input.originalImage.extent.size
+                    targetExtent: input.originalImage.extent
                 )
                 return scaledFrame
             }
@@ -74,29 +74,34 @@ final class WearableVideoFilter: @unchecked Sendable {
     
     // MARK: - Private Methods
     
-    private func scaleToFit(image: CIImage, targetSize: CGSize) -> CIImage {
+    private func scaleToFill(image: CIImage, targetExtent: CGRect) -> CIImage {
         let sourceSize = image.extent.size
+        let targetSize = targetExtent.size
         
         guard sourceSize.width > 0, sourceSize.height > 0,
               targetSize.width > 0, targetSize.height > 0 else {
-            return image
+            return blackFrame(extent: targetExtent)
         }
         
         let scaleX = targetSize.width / sourceSize.width
         let scaleY = targetSize.height / sourceSize.height
-        let scale = min(scaleX, scaleY)
+        let scale = max(scaleX, scaleY)
         
-        let scaledImage = image.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+        let normalizedImage = image.transformed(
+            by: CGAffineTransform(translationX: -image.extent.minX, y: -image.extent.minY)
+        )
+        let scaledImage = normalizedImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
         
-        // Center the scaled image in the target bounds
         let scaledSize = CGSize(
             width: sourceSize.width * scale,
             height: sourceSize.height * scale
         )
-        let offsetX = (targetSize.width - scaledSize.width) / 2
-        let offsetY = (targetSize.height - scaledSize.height) / 2
+        let offsetX = targetExtent.minX + (targetSize.width - scaledSize.width) / 2
+        let offsetY = targetExtent.minY + (targetSize.height - scaledSize.height) / 2
         
-        return scaledImage.transformed(by: CGAffineTransform(translationX: offsetX, y: offsetY))
+        return scaledImage
+            .transformed(by: CGAffineTransform(translationX: offsetX, y: offsetY))
+            .cropped(to: targetExtent)
     }
     
     private func blackFrame(extent: CGRect) -> CIImage {

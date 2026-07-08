@@ -6,9 +6,8 @@
 //
 
 import SwiftUI
-import StreamVideo
-import StreamVideoSwiftUI
 import UIKit
+import MWDATCamera
 
 struct CallView: View {
     let wearablesManager: WearablesManager
@@ -55,15 +54,29 @@ struct CallView: View {
 
                 if wearablesManager.streamStartError != nil {
                     VStack {
-                        HStack {
-                            Text("Stream failed to start. Try Low or Medium quality.")
-                                .font(.subheadline)
-                                .foregroundStyle(.white)
-                            Spacer()
-                            Button("Dismiss") {
-                                wearablesManager.clearStreamStartError()
+                        HStack(alignment: .top) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Glasses camera didn't start")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.white)
+                                Text(wearablesManager.streamStartErrorMessage)
+                                    .font(.caption)
+                                    .foregroundStyle(.white.opacity(0.9))
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
-                            .font(.subheadline.weight(.medium))
+                            Spacer()
+                            VStack(spacing: 8) {
+                                if wearablesManager.needsDATGlassesAppUpdate {
+                                    Button("Update glasses app") {
+                                        Task { await wearablesManager.openDATGlassesAppUpdate() }
+                                    }
+                                    .font(.subheadline.weight(.semibold))
+                                }
+                                Button("Dismiss") {
+                                    wearablesManager.clearStreamStartError()
+                                }
+                                .font(.subheadline.weight(.medium))
+                            }
                         }
                         .padding()
                         .background(.red.opacity(0.8), in: RoundedRectangle(cornerRadius: 12))
@@ -166,7 +179,7 @@ private struct PlaceholderView: View {
 
 private struct CallTopBar: View {
     let isStreaming: Bool
-    let streamState: MWDATCamera.StreamSessionState
+    let streamState: MWDATCamera.StreamState
     var participantCount: Int = 0
 
     var body: some View {
@@ -217,5 +230,3 @@ private struct CallTopBar: View {
         }
     }
 }
-
-import MWDATCamera
