@@ -122,7 +122,10 @@ struct CallView: View {
                 }
             }
         }
-        .ignoresSafeArea()
+        // Only the black background ignores the safe area (fills behind the notch /
+        // Dynamic Island / home indicator). The preview and overlays stay within the
+        // safe area so they aren't hidden behind the notch.
+        .toolbar(.hidden, for: .navigationBar)
         .onAppear {
             UIApplication.shared.isIdleTimerDisabled = true
             print("[CallView] Screen wake lock enabled")
