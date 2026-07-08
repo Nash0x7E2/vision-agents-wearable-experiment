@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import StreamVideo
 
 @main
 struct rayban_agentsApp: App {

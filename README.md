@@ -9,11 +9,16 @@ A SwiftUI iOS application that integrates Ray-Ban Meta smart glasses with Stream
 
 ## Prerequisites
 
-- Xcode 15.0 or later
-- iOS 17.0 or later
+- Xcode 26.3 or a compatible newer Xcode
+- iOS 26.2 or later
 - Ray-Ban Meta smart glasses
 - Stream Video account ([Get one here](https://getstream.io))
 - Meta Wearables Developer account
+
+## SDK Versions
+
+- Stream Video Swift SDK: `1.48.0` or newer compatible `1.x`
+- Meta Wearables DAT iOS SDK: `0.8.0` or newer compatible `0.x`
 
 ## Setup
 
@@ -31,7 +36,7 @@ cd Vision-Agents
 
 1. Copy the secrets template file:
 ```bash
-cp rayban_agents/rayban_agents/Secrets.swift.template rayban_agents/rayban_agents/Secrets.swift
+cp rayban_agents/Secrets.swift.template rayban_agents/Secrets.swift
 ```
 
 2. Edit `Secrets.swift` and fill in your credentials:
@@ -45,6 +50,11 @@ enum Secrets {
 
     // Meta Wearables App ID (use "0" for Developer Mode)
     static let metaAppId = "YOUR_META_APP_ID"
+
+    // Vision Agents backend
+    static let backendBaseURL: String? = "http://127.0.0.1:8000"
+    static let backendSessionsPath: String? = "/sessions"
+    static let backendUserId: String? = nil
 
     // Hardcoded call ID for testing - use the same ID when starting the agent
     static let fixedCallId: String? = "test-call-123"
@@ -64,7 +74,7 @@ When starting your backend agent, use the same call ID so it can join the correc
 
 ### 4. Start the Backend Server
 
-For this project, the call ID is hard coded so pick an example (plugins/gemini/example) and ensure you update the call ID for the agent to match your project. Run the example with `uv run <example> run`. On the iOS side, once the server is running, start the app in XCode and then hit Join call. 
+For this project, the call ID is hardcoded so pick an example (plugins/gemini/example) and ensure you update the call ID for the agent to match your project. Run the example with `uv run <example> run`. On the iOS side, once the server is running, start the app in Xcode and then hit Join call.
 
 ```bash
 cd Vision-Agents
@@ -87,15 +97,14 @@ cd Vision-Agents
 rayban_agents/
 ├── Managers/
 │   ├── StreamCallManager.swift      # Stream Video SDK integration
-│   ├── WearablesManager.swift       # Ray-Ban glasses connection
-│   └── WearableFramePump.swift      # Video frame processing
+│   └── WearablesManager.swift       # Ray-Ban glasses connection
 ├── Views/
 │   ├── ContentView.swift            # Main app view
 │   ├── CallView.swift               # Call interface
 │   ├── CallControlsView.swift       # Call control buttons
 │   └── ConnectionStatusView.swift   # Connection status display
 ├── Filters/
-│   └── WearableVideoFilter.swift    # Video processing filter
+│   └── WearableVideoFilter.swift    # Replaces Stream camera frames with wearable frames
 └── Secrets.swift                    # Configuration (git-ignored)
 ```
 
