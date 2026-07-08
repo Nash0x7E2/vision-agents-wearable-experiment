@@ -7,12 +7,13 @@
 
 import SwiftUI
 import MWDATCore
-import MWDATCamera
 
 struct ContentView: View {
     @State private var wearablesManager = WearablesManager()
     @State private var streamManager = StreamCallManager()
     @State private var callId = ""
+    @State private var didSetupManagers = false
+    @State private var isJoiningCall = false
     @State private var showingCall = false
     
     var body: some View {
@@ -103,14 +104,15 @@ struct ContentView: View {
             } label: {
                 HStack {
                     Image(systemName: "video.fill")
-                    Text("Join Call")
+                    Text(isJoiningCall ? "Joining..." : "Join Call")
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(.blue)
+                .background(isJoiningCall ? Color.secondary : Color.blue)
                 .foregroundStyle(.white)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
+            .disabled(isJoiningCall)
         }
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
@@ -125,20 +127,23 @@ struct ContentView: View {
     // MARK: - Methods
     
     private func setupManagers() {
+        guard !didSetupManagers else { return }
+        didSetupManagers = true
+
         wearablesManager.configure()
         Task {
             await streamManager.setup(wearablesManager: wearablesManager)
-            await wearablesManager.checkCameraPermission()
-            
-            if wearablesManager.cameraPermissionStatus != .granted {
-                await wearablesManager.requestCameraPermission()
-            }
+            // Camera permission is requested at Join time (in startCameraStream),
+            // after a device is link-connected. Requesting here at launch fails
+            // with noDeviceWithConnection because nothing is connected yet.
         }
     }
     
     private func startCall() async {
-        streamManager.setVideoFilter(nil)
-        
+        guard !isJoiningCall else { return }
+        isJoiningCall = true
+        defer { isJoiningCall = false }
+
         // Start wearable camera stream first
         await wearablesManager.startCameraStream()
         
@@ -166,7 +171,11 @@ struct ContentView: View {
             let trimmedCallId = callId.trimmingCharacters(in: .whitespacesAndNewlines)
             effectiveCallId = trimmedCallId.isEmpty ? UUID().uuidString : trimmedCallId
         }
-        await streamManager.createAndJoinCall(callId: effectiveCallId)
+        let joined = await streamManager.createAndJoinCall(callId: effectiveCallId)
+        guard joined else {
+            await wearablesManager.stopCameraStream()
+            return
+        }
         
         // Show the call view immediately after joining
         await MainActor.run {
